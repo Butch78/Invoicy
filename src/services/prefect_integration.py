@@ -21,7 +21,7 @@ from src.models import (
     PipelineStatus, CrossCloudTransferRequest
 )
 from src.services.cloud_storage import storage_service
-from vector_db import vector_db_service
+from src.services.vector_db import vector_db_service
 
 logger = logging.getLogger(__name__)
 

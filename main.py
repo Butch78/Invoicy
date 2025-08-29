@@ -21,10 +21,14 @@ from datetime import datetime
 from typing import List, Optional
 import uuid
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import uvicorn
+
+# Load environment variables from .env file
+load_dotenv()
 
 from src.models import (
     CloudProvider, FileUploadRequest, FileUploadResponse,
@@ -33,7 +37,7 @@ from src.models import (
     ProcessingStatus
 )
 from src.services.cloud_storage import storage_service
-from vector_db import rag_service, vector_db_service
+from src.services.vector_db import rag_service, vector_db_service
 from src.services.prefect_integration import prefect_service
 
 # Configure logging

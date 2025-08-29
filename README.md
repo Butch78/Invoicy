@@ -227,3 +227,58 @@ This foundation is ready for:
 - **Enterprise integrations** (authentication, audit logs, compliance)
 
 Perfect example of the tech stack and capabilities needed for the data engineering role mentioned in the brief! 🚀
+
+
+# Development Commands 🛠️
+
+## 🚀 **ONE COMMAND FOR EVERYTHING**
+
+For the best development experience with **true auto-reload**, use this single command:
+
+```bash
+# Start everything with auto-reload (RECOMMENDED)
+./run_local.sh
+```
+
+This command will:
+- ✅ Install dependencies with `uv`
+- ✅ Start all supporting services in Docker (Prefect, MinIO, PostgreSQL, Qdrant)
+- ✅ Run FastAPI locally with **true auto-reload**
+- ✅ Show you all the important URLs
+- ✅ Auto-restart when you change any Python code
+
+**Access your services:**
+- 📡 **API**: http://localhost:8000
+- 📖 **API Docs**: http://localhost:8000/docs  
+- ❤️ **Health Check**: http://localhost:8000/health
+- 🎛️ **Prefect UI**: http://localhost:4200
+- ☁️ **AWS MinIO**: http://localhost:9011 (awsadmin/awspassword)
+- ☁️ **GCP MinIO**: http://localhost:9012 (gcpadmin/gcppassword)
+
+**To stop everything**: Press `Ctrl+C` (will cleanup Docker services automatically)
+
+---
+
+## 🔧 **Alternative Docker-Only Development** 
+
+If you prefer Docker-only development (no auto-reload):
+
+```bash
+# Start all services in Docker
+docker-compose up -d
+
+# After code changes, restart FastAPI (fast ~2-3 seconds)
+docker-compose restart invoicy-api
+
+# View logs
+docker-compose logs invoicy-api -f
+```
+
+## 🧹 **Cleanup Commands**
+```bash
+# Stop all Docker services
+docker-compose down
+
+# Clean up everything (free up space)
+docker-compose down -v && docker system prune -f
+``` 

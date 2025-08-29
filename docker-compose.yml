@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   # FastAPI Application - Main Invoice Intelligence Pipeline
   invoicy-api:
@@ -21,8 +19,10 @@ services:
       - MINIO_GCP_ENDPOINT=minio-gcp:9000
       - MINIO_GCP_ACCESS_KEY=gcpadmin
       - MINIO_GCP_SECRET_KEY=gcppassword
+    # For development: uncomment to enable live code reloading
     # volumes:
-    #   - .:/app  # Commented out to avoid interfering with container's virtual environment
+    #   - .:/app
+    #   - /app/.venv  # Preserve virtual environment
     depends_on:
       - prefect
       - minio-aws

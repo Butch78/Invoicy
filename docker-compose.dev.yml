@@ -1,0 +1,22 @@
+# Development override for docker-compose.yml
+# Use with: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  invoicy-api:
+    # Option 1: For true auto-reload (experimental - may have import issues)
+    # Uncomment the lines below if you want to try volume mounting
+    # volumes:
+    #   - .:/app/src  # Mount source code
+    #   - /app/.venv  # Preserve virtual environment
+    # environment:
+    #   - PYTHONPATH=/app:/app/src
+    # command: uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app/src
+    
+    # Option 2: Enhanced development mode (recommended)
+    environment:
+      # More verbose logging for development
+      - PREFECT_LOGGING_LEVEL=DEBUG
+      - UVICORN_LOG_LEVEL=debug
+      - PYTHONUNBUFFERED=1  # Immediate output
+    # Use reload but without volume mounting (requires manual restart for changes)
+    command: uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload --log-level debug
