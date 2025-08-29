@@ -1,47 +1,102 @@
 version: "3.9"
 
 services:
+  # FastAPI Application - Main Invoice Intelligence Pipeline
+  invoicy-api:
+    build: .
+    container_name: invoicy-api
+    ports:
+      - "8000:8000"   # FastAPI app
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - PREFECT_API_URL=http://prefect:4200/api
+      # Vector Database Configuration
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      # MinIO AWS Configuration
+      - MINIO_AWS_ENDPOINT=minio-aws:9000
+      - MINIO_AWS_ACCESS_KEY=awsadmin
+      - MINIO_AWS_SECRET_KEY=awspassword
+      # MinIO GCP Configuration  
+      - MINIO_GCP_ENDPOINT=minio-gcp:9000
+      - MINIO_GCP_ACCESS_KEY=gcpadmin
+      - MINIO_GCP_SECRET_KEY=gcppassword
+    # volumes:
+    #   - .:/app  # Commented out to avoid interfering with container's virtual environment
+    depends_on:
+      - prefect
+      - minio-aws
+      - minio-gcp
+      - postgres
+      - qdrant
+    command: uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Pipeline Orchestration
   prefect:
     image: prefecthq/prefect:2-latest
     container_name: prefect
-    command: prefect server start
+    command: prefect server start --host 0.0.0.0
     ports:
       - "4200:4200"   # Prefect UI
     environment:
-      PREFECT_API_URL: http://prefect:4200/api
+      PREFECT_API_URL: http://0.0.0.0:4200/api
+      PREFECT_SERVER_API_HOST: 0.0.0.0
     volumes:
       - ./prefect-flows:/opt/prefect/flows
 
-  # Your other services
+  # Multi-Cloud Storage Simulation (AWS)
   minio-aws:
     image: minio/minio
+    container_name: minio-aws
     ports:
       - "9001:9000"
+      - "9011:9001"   # MinIO Console
     environment:
       MINIO_ROOT_USER: awsadmin
       MINIO_ROOT_PASSWORD: awspassword
-    command: server /data
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio-aws-data:/data
 
+  # Multi-Cloud Storage Simulation (GCP)
   minio-gcp:
     image: minio/minio
+    container_name: minio-gcp
     ports:
       - "9002:9000"
+      - "9012:9001"   # MinIO Console
     environment:
       MINIO_ROOT_USER: gcpadmin
       MINIO_ROOT_PASSWORD: gcppassword
-    command: server /data
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio-gcp-data:/data
 
+  # Structured Data Storage
   postgres:
     image: postgres:14
+    container_name: postgres
     environment:
       POSTGRES_USER: invoicy
       POSTGRES_PASSWORD: invoicy
       POSTGRES_DB: invoicy
     ports:
       - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
 
+  # Vector Database for RAG
   qdrant:
     image: qdrant/qdrant
+    container_name: qdrant
     ports:
-      - "6333:6333"
-      - "6334:6334"
+      - "6333:6333"   # HTTP API
+      - "6334:6334"   # gRPC API
+    volumes:
+      - qdrant-data:/qdrant/storage
+
+volumes:
+  minio-aws-data:
+  minio-gcp-data:
+  postgres-data:
+  qdrant-data:

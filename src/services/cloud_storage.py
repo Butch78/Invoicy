@@ -14,7 +14,7 @@ from minio import Minio
 from minio.error import S3Error
 import logging
 
-from models import CloudProvider, FileType
+from src.models import CloudProvider, FileType
 
 logger = logging.getLogger(__name__)
 
@@ -23,15 +23,15 @@ class CloudStorageConfig:
     """Configuration for multi-cloud storage environments"""
 
     # AWS MinIO configuration (simulating AWS S3)
-    AWS_ENDPOINT = "localhost:9001"
-    AWS_ACCESS_KEY = "awsadmin"
-    AWS_SECRET_KEY = "awspassword"
+    AWS_ENDPOINT = os.getenv("MINIO_AWS_ENDPOINT", "localhost:9001")
+    AWS_ACCESS_KEY = os.getenv("MINIO_AWS_ACCESS_KEY", "awsadmin")
+    AWS_SECRET_KEY = os.getenv("MINIO_AWS_SECRET_KEY", "awspassword")
     AWS_BUCKET = "aws-invoices"
 
     # GCP MinIO configuration (simulating GCP Cloud Storage)
-    GCP_ENDPOINT = "localhost:9002"
-    GCP_ACCESS_KEY = "gcpadmin"
-    GCP_SECRET_KEY = "gcppassword"
+    GCP_ENDPOINT = os.getenv("MINIO_GCP_ENDPOINT", "localhost:9002")
+    GCP_ACCESS_KEY = os.getenv("MINIO_GCP_ACCESS_KEY", "gcpadmin")
+    GCP_SECRET_KEY = os.getenv("MINIO_GCP_SECRET_KEY", "gcppassword")
     GCP_BUCKET = "gcp-invoices"
 
 
@@ -43,14 +43,18 @@ class MultiCloudStorageService:
 
     def __init__(self):
         self.config = CloudStorageConfig()
-        self._setup_clients()
-        self._ensure_buckets_exist()
+        self._aws_client = None
+        self._gcp_client = None
+        self._initialized = False
 
     def _setup_clients(self):
         """Initialize MinIO clients for both cloud providers"""
+        if self._initialized:
+            return
+
         try:
             # AWS MinIO client
-            self.aws_client = Minio(
+            self._aws_client = Minio(
                 self.config.AWS_ENDPOINT,
                 access_key=self.config.AWS_ACCESS_KEY,
                 secret_key=self.config.AWS_SECRET_KEY,
@@ -58,7 +62,7 @@ class MultiCloudStorageService:
             )
 
             # GCP MinIO client
-            self.gcp_client = Minio(
+            self._gcp_client = Minio(
                 self.config.GCP_ENDPOINT,
                 access_key=self.config.GCP_ACCESS_KEY,
                 secret_key=self.config.GCP_SECRET_KEY,
@@ -66,22 +70,38 @@ class MultiCloudStorageService:
             )
 
             logger.info("Multi-cloud storage clients initialized successfully")
+            self._ensure_buckets_exist()
+            self._initialized = True
 
         except Exception as e:
             logger.error(f"Failed to initialize storage clients: {e}")
-            raise
+            # Don't raise exception during initialization - allow graceful degradation
+
+    @property
+    def aws_client(self):
+        """Lazy loading AWS client"""
+        if not self._initialized:
+            self._setup_clients()
+        return self._aws_client
+
+    @property
+    def gcp_client(self):
+        """Lazy loading GCP client"""
+        if not self._initialized:
+            self._setup_clients()
+        return self._gcp_client
 
     def _ensure_buckets_exist(self):
         """Create buckets if they don't exist"""
         try:
-            # Create AWS bucket
-            if not self.aws_client.bucket_exists(self.config.AWS_BUCKET):
-                self.aws_client.make_bucket(self.config.AWS_BUCKET)
+            # Create AWS bucket - use _aws_client directly to avoid recursion
+            if not self._aws_client.bucket_exists(self.config.AWS_BUCKET):
+                self._aws_client.make_bucket(self.config.AWS_BUCKET)
                 logger.info(f"Created AWS bucket: {self.config.AWS_BUCKET}")
 
-            # Create GCP bucket
-            if not self.gcp_client.bucket_exists(self.config.GCP_BUCKET):
-                self.gcp_client.make_bucket(self.config.GCP_BUCKET)
+            # Create GCP bucket - use _gcp_client directly to avoid recursion
+            if not self._gcp_client.bucket_exists(self.config.GCP_BUCKET):
+                self._gcp_client.make_bucket(self.config.GCP_BUCKET)
                 logger.info(f"Created GCP bucket: {self.config.GCP_BUCKET}")
 
         except S3Error as e:

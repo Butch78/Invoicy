@@ -5,6 +5,7 @@ Implements the AI assistant capabilities mentioned in the brief.
 
 import asyncio
 import logging
+import os
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import json
@@ -15,15 +16,15 @@ from qdrant_client.http.exceptions import ResponseHandlingException
 import openai
 from pydantic_ai import Agent, RunContext
 
-from models import InvoiceData, VectorSearchResult, InvoiceQueryResponse
+from src.models import InvoiceData, VectorSearchResult, InvoiceQueryResponse
 
 logger = logging.getLogger(__name__)
 
 
 class VectorDatabaseConfig:
     """Configuration for Qdrant vector database"""
-    QDRANT_HOST = "localhost"
-    QDRANT_PORT = 6333
+    QDRANT_HOST = os.getenv("QDRANT_HOST", "localhost")
+    QDRANT_PORT = int(os.getenv("QDRANT_PORT", "6333"))
     COLLECTION_NAME = "invoices"
     VECTOR_SIZE = 1536  # OpenAI embedding dimension
     DISTANCE_METRIC = qdrant_models.Distance.COSINE
@@ -33,12 +34,24 @@ class EmbeddingService:
     """Service for generating embeddings using OpenAI"""
 
     def __init__(self, api_key: Optional[str] = None):
-        self.client = openai.OpenAI(api_key=api_key)
+        api_key = api_key or os.getenv("OPENAI_API_KEY")
+        if api_key:
+            self.client = openai.OpenAI(api_key=api_key)
+        else:
+            # For demo purposes, allow running without OpenAI key
+            logger.warning(
+                "OpenAI API key not provided - using mock embeddings")
+            self.client = None
         self.model = "text-embedding-ada-002"
 
     async def get_embedding(self, text: str) -> List[float]:
         """Generate embedding for the given text"""
         try:
+            if not self.client:
+                # Return dummy embedding for demo purposes when OpenAI is not available
+                logger.info("Using mock embedding (OpenAI not configured)")
+                return [0.1] * VectorDatabaseConfig.VECTOR_SIZE
+
             response = self.client.embeddings.create(
                 model=self.model,
                 input=text
@@ -80,19 +93,32 @@ class VectorDatabaseService:
     def __init__(self):
         self.config = VectorDatabaseConfig()
         self.embedding_service = EmbeddingService()
-        self._setup_client()
+        self._client = None
+        self._initialized = False
 
     def _setup_client(self):
         """Initialize Qdrant client"""
+        if self._initialized:
+            return
+
         try:
-            self.client = QdrantClient(
+            self._client = QdrantClient(
                 host=self.config.QDRANT_HOST,
                 port=self.config.QDRANT_PORT
             )
-            logger.info("Qdrant client initialized successfully")
+            logger.info("Connected to Qdrant vector database")
+            self._initialized = True
+
         except Exception as e:
-            logger.error(f"Failed to initialize Qdrant client: {e}")
-            raise
+            logger.error(f"Failed to connect to Qdrant: {e}")
+            # Don't raise exception during initialization
+
+    @property
+    def client(self):
+        """Lazy loading Qdrant client"""
+        if not self._initialized:
+            self._setup_client()
+        return self._client
 
     async def ensure_collection_exists(self):
         """Create collection if it doesn't exist"""
@@ -271,25 +297,52 @@ class InvoiceRAGService:
 
     def __init__(self):
         self.vector_service = VectorDatabaseService()
-        self._setup_agent()
+        self._agent = None
+        self._agent_initialized = False
 
     def _setup_agent(self):
         """Setup the pydantic-ai agent for invoice queries"""
-        self.agent = Agent(
-            "openai:gpt-4o-mini",
-            system_prompt="""
-            You are an intelligent invoice assistant. Your job is to answer questions about invoices
-            based on the retrieved invoice data provided to you.
-            
-            Guidelines:
-            - Be precise and factual in your responses
-            - Include specific invoice details (vendor, amount, date, invoice number) when relevant
-            - If asked about totals or aggregations, calculate them accurately
-            - If the retrieved data doesn't contain enough information, say so clearly
-            - Format monetary amounts clearly with currency
-            - Use dates in a readable format
-            """,
-        )
+        if self._agent_initialized:
+            return
+
+        try:
+            # Only initialize if OpenAI key is available
+            if not os.getenv("OPENAI_API_KEY"):
+                logger.warning(
+                    "OpenAI API key not available - RAG service will use mock responses")
+                self._agent = None
+                self._agent_initialized = True
+                return
+
+            self._agent = Agent(
+                "openai:gpt-4o-mini",
+                system_prompt="""
+                You are an intelligent invoice assistant. Your job is to answer questions about invoices
+                based on the retrieved invoice data provided to you.
+                
+                Guidelines:
+                - Be precise and factual in your responses
+                - Include specific invoice details (vendor, amount, date, invoice number) when relevant
+                - If asked about totals or aggregations, calculate them accurately
+                - If the retrieved data doesn't contain enough information, say so clearly
+                - Format monetary amounts clearly with currency
+                - Use dates in a readable format
+                """,
+            )
+            self._agent_initialized = True
+            logger.info("RAG agent initialized successfully")
+
+        except Exception as e:
+            logger.error(f"Failed to initialize RAG agent: {e}")
+            self._agent = None
+            self._agent_initialized = True
+
+    @property
+    def agent(self):
+        """Lazy loading RAG agent"""
+        if not self._agent_initialized:
+            self._setup_agent()
+        return self._agent
 
     async def query_invoices(self, question: str, limit: int = 5) -> InvoiceQueryResponse:
         """
@@ -327,18 +380,26 @@ class InvoiceRAGService:
             context = "\n".join(context_parts)
 
             # Step 3: Generate response using AI agent
-            prompt = f"""
-            User question: {question}
-            
-            Relevant invoices found:
-            {context}
-            
-            Please provide a clear, helpful answer based on this invoice data.
-            """
+            if not self.agent:
+                # Fallback response when OpenAI is not available
+                answer = f"Found {len(search_results)} relevant invoice(s). " + \
+                    "OpenAI integration not available for detailed analysis. " + \
+                    "Here are the matching invoices: " + \
+                    ", ".join([f"{r.invoice_data.vendor_name} (${r.invoice_data.total_amount})"
+                               for r in search_results[:3]])
+            else:
+                prompt = f"""
+                User question: {question}
+                
+                Relevant invoices found:
+                {context}
+                
+                Please provide a clear, helpful answer based on this invoice data.
+                """
 
-            result = self.agent.run_sync(prompt)
-            answer = str(result.data) if hasattr(
-                result, 'data') else str(result)
+                result = self.agent.run_sync(prompt)
+                answer = str(result.data) if hasattr(
+                    result, 'data') else str(result)
 
             # Calculate confidence score based on similarity scores
             avg_similarity = sum(

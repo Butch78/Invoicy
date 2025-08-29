@@ -1,16 +1,44 @@
 [project]
 name = "invoicy"
 version = "0.1.0"
-description = "Add your description here"
+description = "Open-source AI-powered invoice intelligence pipeline with multi-cloud data transfer"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "boto3>=1.40.20",
+    # Core FastAPI and web server
     "fastapi>=0.116.1",
+    "uvicorn[standard]>=0.27.0",
+    "python-multipart>=0.0.6",
+    
+    # Multi-cloud storage (AWS & GCP simulation)
+    "boto3>=1.40.20",
     "minio>=7.2.16",
+    
+    # Pipeline orchestration
     "prefect>=3.4.14",
+    
+    # Database connections
     "psycopg2-binary>=2.9.10",
+    "sqlalchemy>=2.0.25",
+    
+    # AI and vector database
     "pydantic>=2.11.7",
     "pydantic-ai>=0.8.0",
     "qdrant-client>=1.15.1",
+    "openai>=1.12.0",
+    
+    # Data processing
+    "pandas>=2.1.4",
+    "numpy>=1.26.2",
+    
+    # File processing (for invoice extraction)
+    "pypdf2>=3.0.1",
+    "pillow>=10.1.0",
+    
+    # HTTP client and utilities
+    "httpx>=0.26.0",
+    "python-dotenv>=1.0.0",
+    
+    # Async support
+    "aiofiles>=23.2.1",
 ]
