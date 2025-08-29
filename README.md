@@ -233,10 +233,11 @@ Perfect example of the tech stack and capabilities needed for the data engineeri
 
 ## 🚀 **ONE COMMAND FOR EVERYTHING**
 
+### **Development Mode (Auto-reload)**
 For the best development experience with **true auto-reload**, use this single command:
 
 ```bash
-# Start everything with auto-reload (RECOMMENDED)
+# Start everything with auto-reload (RECOMMENDED FOR DEVELOPMENT)
 ./run_local.sh
 ```
 
@@ -246,6 +247,21 @@ This command will:
 - ✅ Run FastAPI locally with **true auto-reload**
 - ✅ Show you all the important URLs
 - ✅ Auto-restart when you change any Python code
+
+### **Production Mode (Docker)**
+For production deployment with all services in Docker:
+
+```bash
+# Deploy in production mode (RECOMMENDED FOR PRODUCTION)
+./run_production.sh
+```
+
+This command will:
+- ✅ Load environment variables from `.env` file
+- ✅ Build optimized Docker images
+- ✅ Start all services in production mode (no auto-reload)
+- ✅ Perform health checks on all services
+- ✅ Show deployment status and URLs
 
 **Access your services:**
 - 📡 **API**: http://localhost:8000
@@ -259,13 +275,16 @@ This command will:
 
 ---
 
-## 🔧 **Alternative Docker-Only Development** 
+## 🔧 **Manual Docker Commands** 
 
-If you prefer Docker-only development (no auto-reload):
+If you prefer manual Docker management:
 
 ```bash
-# Start all services in Docker
+# Start all services in Docker (production mode)
 docker-compose up -d
+
+# Start with development override (if you have docker-compose.dev.yml)
+docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 
 # After code changes, restart FastAPI (fast ~2-3 seconds)
 docker-compose restart invoicy-api
@@ -281,4 +300,12 @@ docker-compose down
 
 # Clean up everything (free up space)
 docker-compose down -v && docker system prune -f
-``` 
+```
+
+## 🎯 **Which Mode to Use?**
+
+| Scenario | Command | Auto-reload | Performance | Use Case |
+|----------|---------|-------------|-------------|----------|
+| **Active Development** | `./run_local.sh` | ✅ Yes | ⚡ Instant | Making code changes |
+| **Production Deployment** | `./run_production.sh` | ❌ No | 🚀 Optimized | Server deployment |
+| **Testing/Demo** | `docker-compose up -d` | ❌ No | 🚀 Optimized | Quick testing | 

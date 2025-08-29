@@ -34,7 +34,7 @@ class PrefectService:
 
     def __init__(self):
         self.prefect_api_url = os.getenv(
-            "PREFECT_API_URL", "http://localhost:4200/api")
+            "PREFECT_API_URL", "http://localhost:4200")
         self.client = None
 
     async def get_client(self) -> PrefectClient:
@@ -48,7 +48,7 @@ class PrefectService:
         try:
             async with httpx.AsyncClient() as client:
                 # Use admin/version endpoint which exists in Prefect 2.x
-                response = await client.get(f"{self.prefect_api_url}/api/health", timeout=5.0)
+                response = await client.get(f"{self.prefect_api_url}/health", timeout=5.0)
                 return response.status_code == 200
         except Exception as e:
             logger.error(f"Prefect health check failed: {e}")

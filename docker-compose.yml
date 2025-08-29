@@ -5,8 +5,10 @@ services:
     container_name: invoicy-api
     ports:
       - "8000:8000"   # FastAPI app
+    env_file:
+      - .env
     environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      # Override specific container-specific settings
       - PREFECT_API_URL=http://prefect:4200/api
       # Vector Database Configuration
       - QDRANT_HOST=qdrant
@@ -29,7 +31,8 @@ services:
       - minio-gcp
       - postgres
       - qdrant
-    command: uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    # Production command (no --reload)
+    command: uv run uvicorn main:app --host 0.0.0.0 --port 8000
 
   # Pipeline Orchestration
   prefect:
