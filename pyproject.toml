@@ -1,0 +1,16 @@
+[project]
+name = "invoicy"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "boto3>=1.40.20",
+    "fastapi>=0.116.1",
+    "minio>=7.2.16",
+    "prefect>=3.4.14",
+    "psycopg2-binary>=2.9.10",
+    "pydantic>=2.11.7",
+    "pydantic-ai>=0.8.0",
+    "qdrant-client>=1.15.1",
+]
