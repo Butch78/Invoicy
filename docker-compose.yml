@@ -77,7 +77,7 @@ services:
 
   # Structured Data Storage
   postgres:
-    image: postgres:14
+    image: postgres:18beta3
     container_name: postgres
     environment:
       POSTGRES_USER: invoicy

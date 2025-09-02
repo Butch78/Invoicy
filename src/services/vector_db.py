@@ -154,6 +154,9 @@ class VectorDatabaseService:
 
             # Generate embedding
             embedding = await self.embedding_service.get_embedding(invoice_text)
+            
+            # Store the last generated embedding for caching purposes
+            self._last_generated_embedding = embedding
 
             # Prepare payload
             payload = {
@@ -190,6 +193,52 @@ class VectorDatabaseService:
 
         except Exception as e:
             logger.error(f"Failed to add invoice to vector database: {e}")
+            raise
+
+    async def add_invoice_with_embedding(self, invoice: InvoiceData, embedding: List[float]) -> str:
+        """Add an invoice to the vector database using a pre-computed embedding"""
+        try:
+            await self.ensure_collection_exists()
+
+            # Prepare text for reference
+            invoice_text = self.embedding_service.prepare_invoice_text(invoice)
+
+            # Prepare payload
+            payload = {
+                "file_id": invoice.file_id,
+                "vendor_name": invoice.vendor_name,
+                "vendor_address": invoice.vendor_address,
+                "invoice_number": invoice.invoice_number,
+                "invoice_date": invoice.invoice_date.isoformat(),
+                "total_amount": invoice.total_amount,
+                "currency": invoice.currency,
+                "line_items": invoice.line_items,
+                "text_content": invoice_text,
+                "indexed_at": datetime.now().isoformat(),
+                "cached_embedding": True  # Flag to indicate this used a cached embedding
+            }
+
+            # Generate point ID
+            point_id = f"invoice_{invoice.file_id}_{invoice.invoice_number}"
+
+            # Upsert to Qdrant
+            self.client.upsert(
+                collection_name=self.config.COLLECTION_NAME,
+                points=[
+                    qdrant_models.PointStruct(
+                        id=point_id,
+                        vector=embedding,
+                        payload=payload
+                    )
+                ]
+            )
+
+            logger.info(
+                f"Added invoice {invoice.invoice_number} to vector database using cached embedding")
+            return point_id
+
+        except Exception as e:
+            logger.error(f"Failed to add invoice with embedding to vector database: {e}")
             raise
 
     async def search_invoices(
