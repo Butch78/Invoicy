@@ -83,6 +83,14 @@ This project demonstrates exactly what was mentioned in the brief about the tech
 
 ---
 
+Future Implementation Plans
+
+![alt text](image.png)
+
+I will store the embeddings in Parquet files in MinIO and load them into Qdrant as needed. This will optimize storage and retrieval for large datasets. I will also store the parquet files in Apache Iceberg format to allow for efficient querying and versioning of the embeddings data.
+
+It will also allow for easier integration with big data processing frameworks like Apache Spark or Dask in the future, enabling scalable processing of embeddings for large-scale applications and reduce the cost of storing embeddings directly in the vector database & transferring the data between clouds.
+
 ## 🚀 Quick Start
 
 ### Prerequisites
